@@ -56,7 +56,7 @@ An empirical, quota-aware, deadline-enforcing research assistant and evaluation 
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .\.venv\Scripts\Activate.ps1
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ### 2. Configure Environment (Optional for Real Groq)

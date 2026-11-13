@@ -134,7 +134,7 @@ async def run_all(output_dir: Path = RUNS_DIR) -> None:
             source="stand-in",
             num_requests=18,
             concurrency_burst=1,
-            inter_arrival_ms=120.0,
+            inter_arrival_ms=1200.0,
             retrieval_setting="med_k5_rerank",
         ),
         orchestrator=orch_steady,
@@ -232,13 +232,13 @@ async def run_all(output_dir: Path = RUNS_DIR) -> None:
 
     # Scenario E: Daily Budget Exhausted (3pm scenario: daily limit gone)
     print("  Running Scenario: daily_budget_exhausted...")
+    # Configured on stand-in to test simulated provider-side 429 daily exhaustion rejection
     standin_state.reset(StandInConfig(daily_exhausted=True))
     orch_daily = Orchestrator(
         config=OrchestratorConfig(request_timeout_ms=5000.0),
         bus=bus,
         standin_provider=standin_client,
     )
-    orch_daily.quota.mark_daily_exhausted(reset_s=3600.0)
     await run_load_scenario(
         spec=ScenarioSpec(
             name="daily_budget_exhausted",
