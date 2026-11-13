@@ -6,7 +6,7 @@ An empirical, quota-aware, deadline-enforcing research assistant and evaluation 
 
 ## Deliverables & Documentation
 
-- **Full Submission Report (2 Pages):** [`THE_RELAY_SUBMISSION_REPORT.md`](THE_RELAY_SUBMISSION_REPORT.md)
+- **Full Submission Report (2 Pages):** [`THE_RELAY_SUBMISSION_REPORT.docx`](THE_RELAY_SUBMISSION_REPORT.docx)
   - Table 1 (Groq empirical boundaries & error behavior)
   - Tables 2a & 2b (Latency percentiles and outcomes across 6 load scenarios)
   - Table 3 (Retrieval parameter sweeps & token economics)
@@ -19,6 +19,7 @@ An empirical, quota-aware, deadline-enforcing research assistant and evaluation 
   - [`runs/traces.jsonl`](runs/traces.jsonl) — Granular monotonic span events for every request lifecycle
   - [`runs/table1_limits.json`](runs/table1_limits.json) — Calibrated Groq limit headers and probe data
   - [`runs/transcript.jsonl`](runs/transcript.jsonl) — Complete unedited assistant conversation history (API key redacted for security)
+  - [`runs/REPORT.md`](runs/REPORT.md) — Raw benchmark summary tables and trace breakdown
 - **Assignment Brief:** [`The_Relay_Assignment_Brief.pdf`](The_Relay_Assignment_Brief.pdf)
 
 ---
