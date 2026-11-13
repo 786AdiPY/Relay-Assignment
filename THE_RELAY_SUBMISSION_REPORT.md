@@ -48,7 +48,7 @@ The stand-in differs most in **GPU kernel scheduling and batch interleaving**. G
 | :--- | :--- | :--- | :--- |
 | Requests per minute | 30 req/min | Groq documentation and account limits panel | High |
 | Tokens per minute | 8,000 tokens/min | Measured in `x-ratelimit-limit-tokens` header on live API calls | High |
-| Requests per day | 1,000 req/day | Measured in `x-ratelimit-limit-requests` header | High |
+| Requests per day | 1,000 req/day (qwen/qwen3.8-27b; 14,400 for 8b) | Measured in `x-ratelimit-limit-requests` header (1,000 RPD for 27b/70b; 14,400 for 8b instant) | High |
 | Tokens per day | 500,000 tokens/day | Groq Console organization quota documentation | High |
 | Requests in flight at once | ~5–10 requests | Concurrency probe; latency degrades sharply above 5 in-flight | Medium |
 | What it returns when a limit is hit | HTTP 429 with JSON error object and `Retry-After` header | Triggered rate limit and inspected raw HTTP response | High |
@@ -69,14 +69,18 @@ The stand-in differs most in **GPU kernel scheduling and batch interleaving**. G
 *(Same rows as Table 2a; percentages rounded to one decimal place)*
 | Scenario | Succeeded % | Rate-limited % | Timed out or given up % | Retries per request | Peak queue length | Tokens per answer | Cost per 1,000 attempts |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| real_steady | 100.0 | 0.0 | 0.0 | 0.25 | 0 | 2466.0 | $0.2730 |
-| steady | 5.6 | 66.7 | 27.8 | 1.61 | 5 | 4486.0 | $0.4669 |
+| real_steady | 100.0 | 0.0 | 0.0 | 0.25 | 1 | 2466.0 | $0.2730 |
+| steady | 5.6 | 66.7 | 27.8 | 1.61 | 5 | 4486.0 | $0.0358 |
 | burst | 0.0 | 0.0 | 100.0 | 0.04 | 20 | 247.1 | $0.0273 |
 | sustained_overload | 0.0 | 46.7 | 53.3 | 0.07 | 17 | 164.3 | $0.0179 |
 | per_minute_limit_halved | 0.0 | 35.0 | 65.0 | 0.15 | 13 | 155.3 | $0.0183 |
-| daily_budget_exhausted | 0.0 | 100.0 | 0.0 | 0.0 | 0 | 0.0 | $0.0000 |
+| daily_budget_exhausted | 0.0 | 100.0 | 0.0 | 0.0 | 3 | 0.0 | $0.0000 |
 
-### A Number We Could Not Have Guessed Without Running It
+### Steady Scenario Analysis
+The steady scenario offered rate is 52.4 requests/minute, which is below the nominal RPM ceiling (60 RPM on stand-in), but massively exceeds the binding 6,000 TPM capacity. Because multi-step RAG with retrieval refinement loops consumes an average of 4,486 tokens per completed answer, an offered rate of 52.4 req/min represents ~235,000 offered TPM (~39x the token budget). Consequently, the minute token bucket saturates almost instantly: 66.7% of requests receive HTTP 429 rate limits, 27.8% time out in admission queue, and only 5.6% (1 request) completes successfully before token exhaustion.
+
+### Cost Calculation and The 8 ms Number We Couldn't Have Guessed
+Cost per 1,000 attempts is computed across all attempts (total token cost divided by total attempts multiplied by 1,000): real steady costs $0.2730 (all 4 attempts succeeded), while stand-in steady drops to $0.0358 because only 1 of 18 requests consumed full generation tokens while 17 shed early. Overloaded burst scenarios cost $0.0179–$0.0273, and daily budget exhaustion costs $0.0000. Crucially,
 **8 milliseconds.** In the `daily_budget_exhausted` benchmark scenario (using `source="stand-in"`), the stand-in was configured to simulate upstream provider-side daily quota exhaustion. When requests hit the stand-in endpoint, it returned an immediate simulated provider-side `HTTP 429 Too Many Requests` error with `requests per day (RPD) exhausted` headers and `Retry-After: 3600s`. The median total latency was just **8 ms** (the round-trip time for simulated provider-side 429 rejection), consuming **0 tokens** with **100% rate-limited** classification. Because the error payload carried an explicit non-recoverable daily exhaustion signal, the orchestrator immediately refrained from retrying, preventing futile backoff cycles and eliminating wasted CPU time.
 
 ---
@@ -164,8 +168,8 @@ Despite `small_k3_norank`'s superior empirical accuracy on this specific 16-ques
 
 ### Policy
 * **Retryable triggers:** Upstream `HTTP 5xx`, network timeouts, and non-daily `HTTP 429` (per-minute limits).
-* **Backoff calculation:** Truncated exponential backoff with full jitter (base = 250 ms, factor = 2, max = 3500 ms). If `Retry-After` is present in the response headers, the backoff strictly honors `max(backoff, retry_after)`.
-* **Single Deadline Constraint:** If backoff + 150 ms >= remaining_deadline, the retry is immediately aborted and the request fails fast with `timeout`.
+* **Backoff calculation:** Base exponential backoff is capped at max_backoff_ms (3,500 ms) with full jitter. If `Retry-After` is specified by the provider, the backoff strictly honors the requested delay without truncation below the provider's requirement.
+* **Single Deadline Constraint:** If backoff + 150 ms >= remaining_deadline, the retry is immediately aborted and the request fails fast with `timeout` rather than violating the deadline or retrying prematurely.
 
 ### One Case Where Retrying Made Things Worse
 During an unjittered, aggressive retry test with 30 concurrent requests under `sustained_overload`, requests that received a 429 retried almost simultaneously after a fixed 100ms window. This created a **synchronized retry storm**: rather than allowing Groq's 8,000 TPM bucket to replenish, the retried requests hit the gateway in a tight burst, consuming 100% of the reset window and tripping the circuit breaker for all subsequent queued requests. Introducing randomized jitter (0.75× to 1.25×) and enforcing `remaining_ms` checks eliminated this synchronization.

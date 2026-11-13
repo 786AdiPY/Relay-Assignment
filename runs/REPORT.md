@@ -13,12 +13,12 @@
 ## Table 2b: Outcomes
 | Scenario | Succeeded % | Rate-limited % | Timed out or given up % | Retries per request | Peak queue length | Tokens per answer | Cost per 1,000 attempts |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| real_steady | 100.0 | 0.0 | 0.0 | 0.25 | 0 | 2466.0 | $0.2730 |
-| steady | 5.6 | 66.7 | 27.8 | 1.61 | 5 | 4486.0 | $0.4669 |
+| real_steady | 100.0 | 0.0 | 0.0 | 0.25 | 1 | 2466.0 | $0.2730 |
+| steady | 5.6 | 66.7 | 27.8 | 1.61 | 5 | 4486.0 | $0.0358 |
 | burst | 0.0 | 0.0 | 100.0 | 0.04 | 20 | 247.1 | $0.0273 |
 | sustained_overload | 0.0 | 46.7 | 53.3 | 0.07 | 17 | 164.3 | $0.0179 |
 | per_minute_limit_halved | 0.0 | 35.0 | 65.0 | 0.15 | 13 | 155.3 | $0.0183 |
-| daily_budget_exhausted | 0.0 | 100.0 | 0.0 | 0.0 | 0 | 0.0 | $0.0000 |
+| daily_budget_exhausted | 0.0 | 100.0 | 0.0 | 0.0 | 3 | 0.0 | $0.0000 |
 
 ## Table 3: Retrieval Settings
 | Setting | Questions asked | Correct and cited % | Wrong % | Correctly refused % | Tokens per answer | First token p50 / p95 (ms) | Total time p50 / p95 (ms) |

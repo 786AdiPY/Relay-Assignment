@@ -404,12 +404,16 @@ class Orchestrator:
                     raise
 
                 # Compute backoff without resetting or exceeding end-to-end deadline
-                backoff_ms = self.cfg.base_backoff_ms * (2**attempt)
-                if self.cfg.honor_retry_after and exc.retry_after_s is not None:
-                    backoff_ms = max(backoff_ms, exc.retry_after_s * 1000.0)
-                backoff_ms = min(backoff_ms, self.cfg.max_backoff_ms)
+                # Base exponential backoff capped at max_backoff_ms
+                calc_backoff = min(self.cfg.base_backoff_ms * (2**attempt), self.cfg.max_backoff_ms)
                 if self.cfg.jitter:
-                    backoff_ms *= self._rng.uniform(0.75, 1.25)
+                    calc_backoff *= self._rng.uniform(0.75, 1.25)
+
+                # Provider Retry-After takes precedence and is strictly honored without truncation
+                if self.cfg.honor_retry_after and exc.retry_after_s is not None:
+                    backoff_ms = max(calc_backoff, exc.retry_after_s * 1000.0)
+                else:
+                    backoff_ms = calc_backoff
 
                 if backoff_ms + 150.0 >= ctx.remaining_ms():
                     raise DeadlineExceededError(

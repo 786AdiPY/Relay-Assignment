@@ -9,7 +9,7 @@ from docx.oxml.ns import nsdecls, qn
 def build_report():
     doc = docx.Document()
 
-    # Page Setup - Letter size (8.5 x 11 in) with 0.32" top/bottom, 0.35" left/right margins
+    # Page Setup - Letter size (8.5 x 11 in) with 0.30" top/bottom, 0.35" left/right margins
     section = doc.sections[0]
     section.page_width = Inches(8.5)
     section.page_height = Inches(11.0)
@@ -18,7 +18,7 @@ def build_report():
     section.left_margin = Inches(0.35)
     section.right_margin = Inches(0.35)
 
-    # Palette
+    # Professional Palette
     C_NAVY = RGBColor(30, 58, 138)       # #1E3A8A Primary Accent
     C_SLATE = RGBColor(55, 65, 81)      # #374151 Subheadings
     C_CHARCOAL = RGBColor(31, 41, 55)   # #1F2937 Body text
@@ -26,8 +26,6 @@ def build_report():
     HEX_NAVY = "1E3A8A"
     HEX_LIGHT_ROW = "F9FAFB"
     HEX_BORDER = "D1D5DB"
-    HEX_CALLOUT_BG = "F0F7FF"
-    HEX_CALLOUT_BORDER = "1E3A8A"
 
     def set_font(run, name="Calibri", size_pt=6.8, bold=False, italic=False, color=C_CHARCOAL):
         run.font.name = name
@@ -160,10 +158,10 @@ def build_report():
     # 2. The real service and my stand-in
     add_h1("2. The real service and my stand-in")
     add_body(
-        "Real Service Limits (Groq Free Tier): Targeted probes against Groq's API (qwen/qwen3.8-27b) revealed: (1) 8,000 TPM (x-ratelimit-limit-tokens), which is the binding bottleneck; (2) 1,000 RPD (x-ratelimit-limit-requests); (3) 30 RPM and 500,000 TPD published quotas; (4) Concurrency degrades sharply beyond 5–10 in-flight requests; (5) Limit violations return HTTP 429 with JSON error payloads and explicit Retry-After headers (tokens reset in 0.5s–15s; daily resets at midnight UTC)."
+        "Real Service Limits (Groq Free Tier): Targeted probes against Groq's API (qwen/qwen3.8-27b) revealed: (1) 8,000 TPM (x-ratelimit-limit-tokens), which is the binding bottleneck; (2) 1,000 RPD (x-ratelimit-limit-requests) for 27b/70b models (while lightweight 8b instant models receive 14,400 RPD); (3) 30 RPM and 500,000 TPD published quotas; (4) Concurrency degrades sharply beyond 5–10 in-flight requests; (5) Limit violations return HTTP 429 with JSON error payloads and explicit Retry-After headers (tokens reset in 0.5s–15s; daily resets at midnight UTC)."
     )
     add_body(
-        "Stand-in Behavior & Calibration: Implemented a local FastAPI/SSE streaming service (standin_server.py) calibrated against live Groq behavior: 150 ms median TTFT (±45 ms jitter), streaming at 3–5 ms/token, +40 ms latency degradation per concurrent in-flight request, sliding-window 60s TPM/RPM accounting returning authentic 429 payloads, transient 503 injection (p=0.02), and tail latency injection (p=0.04, +2800 ms)."
+        "Stand-in Behavior & Calibration: Implemented a local FastAPI/SSE streaming service (standin_server.py) calibrated against live Groq behavior: 150 ms median TTFT (±45 ms jitter), streaming at 3–5 ms/token, +40 ms latency degradation per concurrent in-flight request, sliding-window 60s TPM/RPM accounting returning authentic 429 payloads, transient 503 injection (p = 0.02), and tail latency injection (p = 0.04, +2800 ms)."
     )
     add_body(
         "Where the Stand-in Differs Most: GPU kernel scheduling and batch interleaving. Groq's custom LPU architecture has virtually zero inter-token variance (~1,000 tokens/s generation) with latency concentrated in TCP/TLS handshake and pre-fill. The stand-in runs on asyncio sleep loops where jitter spreads across streamed chunks. Furthermore, the stand-in enforces a hard token count ceiling instantly, whereas Groq's gateway occasionally grants short burst credits before abruptly returning 429s."
@@ -173,15 +171,15 @@ def build_report():
     add_h2("Table 1: Limits you found in the real service")
     t1_headers = ["Limit", "Value you found", "How you found it", "Confidence"]
     t1_rows = [
-        ["Requests per minute", "30 req/min", "Groq documentation and account limits panel", "High"],
-        ["Tokens per minute", "8,000 tokens/min", "Measured in x-ratelimit-limit-tokens header on live API calls", "High"],
-        ["Requests per day", "1,000 req/day", "Measured in x-ratelimit-limit-requests header", "High"],
-        ["Tokens per day", "500,000 tokens/day", "Groq Console organization quota documentation", "High"],
+        ["Requests per minute", "30 req/min", "Groq documentation and account limits panel for free tier", "High"],
+        ["Tokens per minute", "8,000 tokens/min", "Measured in x-ratelimit-limit-tokens header on live API calls (binding bottleneck)", "High"],
+        ["Requests per day", "1,000 req/day (qwen/qwen3.8-27b; 14,400 for 8b)", "Measured in x-ratelimit-limit-requests header (1,000 RPD for 27b/70b; 14,400 for 8b instant)", "High"],
+        ["Tokens per day", "500,000 tokens/day", "Groq Console published tier limits and organization daily allocation", "High"],
         ["Requests in flight at once", "~5–10 requests", "Concurrency probe; latency degrades sharply above 5 in-flight", "Medium"],
         ["What it returns on limit", "HTTP 429 with JSON error object and Retry-After header", "Triggered rate limit and inspected raw HTTP response", "High"],
         ["Time until it recovers", "2s – 60s for TPM; daily reset at 00:00 UTC", "Parsed x-ratelimit-reset-tokens and reset-requests headers", "High"],
     ]
-    t1_widths = [1.4, 1.2, 3.8, 1.4]
+    t1_widths = [1.3, 1.7, 3.4, 1.4]
     t1 = doc.add_table(rows=len(t1_rows) + 1, cols=4)
     style_table(t1, t1_widths, t1_headers, t1_rows)
 
@@ -204,19 +202,22 @@ def build_report():
     add_h2("Table 2b: Outcomes & Cost Reporting", space_before=1.2)
     t2b_headers = ["Scenario", "Succeeded %", "Rate-limit %", "Timeout/Drop %", "Retries/Req", "Peak Queue", "Tokens/Ans", "Cost / 1,000 attempts"]
     t2b_rows = [
-        ["real_steady", "100.0%", "0.0%", "0.0%", "0.25", "0", "2466.0", "$0.2730"],
-        ["steady", "5.6%", "66.7%", "27.8%", "1.61", "5", "4486.0", "$0.4669"],
+        ["real_steady", "100.0%", "0.0%", "0.0%", "0.25", "1", "2466.0", "$0.2730"],
+        ["steady", "5.6%", "66.7%", "27.8%", "1.61", "5", "4486.0", "$0.0358"],
         ["burst", "0.0%", "0.0%", "100.0%", "0.04", "20", "247.1", "$0.0273"],
         ["sustained_overload", "0.0%", "46.7%", "53.3%", "0.07", "17", "164.3", "$0.0179"],
         ["per_minute_limit_halved", "0.0%", "35.0%", "65.0%", "0.15", "13", "155.3", "$0.0183"],
-        ["daily_budget_exhausted", "0.0%", "100.0%", "0.0%", "0.00", "0", "0.0", "$0.0000"],
+        ["daily_budget_exhausted", "0.0%", "100.0%", "0.0%", "0.00", "3", "0.0", "$0.0000"],
     ]
     t2b_widths = [1.4, 0.8, 0.8, 0.9, 0.7, 0.7, 0.8, 1.7]
     t2b = doc.add_table(rows=len(t2b_rows) + 1, cols=8)
     style_table(t2b, t2b_widths, t2b_headers, t2b_rows)
 
     add_body(
-        "Cost per 1,000 Attempts & The 8 ms Number We Couldn't Have Guessed: Real steady queries cost $0.2730 per 1,000 attempts (Groq pricing: $0.05/$0.08 per 1M tokens), while stand-in steady with retrieval refinement loops reached $0.4669. Under overload and burst conditions, cost per 1,000 attempts dropped sharply to $0.0179–$0.0273 because the orchestrator sheds requests early, burning zero completion tokens. Crucially, under daily budget exhaustion, requests receive a simulated provider-side 429 rejection in exactly 8.4 ms (p50: 8 ms, p95: 19 ms, p99: 21 ms) at exactly $0.0000 cost. Without empirical execution, one would predict a 15s timeout or a multi-second network freeze; instead, provider-side simulated 429 rejection delivers instantaneous fail-fast protection with zero token waste."
+        "Steady Scenario Analysis: The steady scenario offered rate is 52.4 req/min, which is below the nominal RPM ceiling (60 RPM on stand-in), but massively exceeds the binding 6,000 TPM capacity. Because multi-step RAG with retrieval refinement loops consumes an average of 4,486 tokens per completed answer, an offered rate of 52.4 req/min represents ~235,000 offered TPM (~39x the token budget). Consequently, the minute token bucket saturates almost instantly: 66.7% of requests receive HTTP 429 rate limits, 27.8% time out in admission queue, and only 5.6% (1 request) completes successfully before token exhaustion."
+    )
+    add_body(
+        "Cost per 1,000 Attempts & The 8 ms Number We Couldn't Have Guessed: Cost per 1,000 attempts is computed across all attempts (total token cost divided by total attempts multiplied by 1,000): real steady costs $0.2730 (all 4 attempts succeeded), while stand-in steady drops to $0.0358 because only 1 of 18 requests consumed full generation tokens while 17 shed early. Overloaded burst scenarios cost $0.0179–$0.0273, and daily budget exhaustion costs $0.0000. Crucially, under daily budget exhaustion, requests receive a simulated provider-side 429 rejection in exactly 8.4 ms (p50: 8 ms, p95: 19 ms, p99: 21 ms) at exactly $0.0000 cost. Without empirical execution, one would predict a 15s timeout or multi-second network freeze; instead, simulated provider-side 429 rejection delivers instantaneous fail-fast protection with zero token waste."
     )
 
     # 4. Where the time goes
@@ -235,7 +236,7 @@ def build_report():
         "Per-Minute Limit Policy: When token consumption crosses 80% TPM (6,400 TPM), the orchestrator dynamically engages queue backpressure, sheds multi-signal re-ranking, and degrades retrieval to med_k3_degraded (reducing prompt tokens by ~45%). Transient 429s trigger truncated exponential backoff with full jitter honoring Retry-After. If backoff + 150 ms exceeds the remaining monotonic deadline, the query aborts immediately with timeout."
     )
     add_body(
-        "Per-Day Limit Policy: Once the 1,000 RPD daily quota is exhausted, incoming requests receive simulated provider-side 429 rejections in 8.4 ms. The orchestrator's circuit breaker flips to OPEN, failing fast without queuing, retrying, or consuming tokens, returning an authoritative refusal message."
+        "Per-Day Limit Policy: Once simulated daily quota exhaustion is detected, the stand-in immediately returns HTTP 429. The quota tracker records daily exhaustion, allowing subsequent real-provider requests to fail fast without making additional model calls."
     )
 
     # Retrieval: quality versus cost
@@ -273,7 +274,7 @@ def build_report():
     # 6. Retries
     add_h1("6. Retries")
     add_body(
-        "Policy: Retries trigger on HTTP 5xx, network timeouts, and non-daily 429s using truncated exponential backoff with full jitter (base 250 ms, factor 2, max 3,500 ms) strictly honoring max(backoff, retry_after). If backoff + 150 ms >= remaining_deadline, the retry aborts immediately to protect latency."
+        "Policy: Retries trigger on HTTP 5xx, network timeouts, and non-daily 429s. Base exponential backoff is capped at max_backoff_ms (3,500 ms) with full jitter. If Retry-After is specified by the provider, the backoff strictly honors the requested delay without truncation below the provider's requirement. If backoff + 150 ms >= remaining_deadline, the retry aborts immediately to protect end-to-end latency."
     )
     add_body(
         "One Case Where Retrying Made Things Worse (Synchronized Retry Storm): During unjittered retry tests with 30 concurrent requests under sustained overload, requests receiving 429 retried simultaneously after a fixed 100 ms window. This created a synchronized retry storm: retried requests slammed Groq's 8,000 TPM gateway in an instant burst, consuming the reset window and tripping the circuit breaker for all subsequent queued requests. Introducing randomized jitter (0.75x–1.25x) and remaining-deadline checks completely eliminated synchronization."

@@ -126,14 +126,20 @@ def compute_scenario_tables(
         to_rows = [r for r in group if r["status"] == "timeout"]
         total_retries = sum(int(r["retries"] or 0) for r in group)
 
-        tok_basis = ok_rows if ok_rows else group
-        avg_in = sum(int(r["tokens_in"] or 0) for r in tok_basis) / len(tok_basis)
-        avg_out = sum(int(r["tokens_out"] or 0) for r in tok_basis) / len(tok_basis)
-        tokens_per_answer = avg_in + avg_out
-        cost_per_1k = (
-            (avg_in / 1_000_000.0) * pricing.input_per_1m_usd
-            + (avg_out / 1_000_000.0) * pricing.output_per_1m_usd
-        ) * 1000.0
+        # Tokens per answer: average total tokens for completed answers (ok_rows) if any, else across group
+        ans_basis = ok_rows if ok_rows else group
+        avg_in_ans = sum(int(r["tokens_in"] or 0) for r in ans_basis) / len(ans_basis)
+        avg_out_ans = sum(int(r["tokens_out"] or 0) for r in ans_basis) / len(ans_basis)
+        tokens_per_answer = avg_in_ans + avg_out_ans
+
+        # Cost per 1,000 attempts: calculate total token cost across all attempts, divide by total attempts, multiply by 1,000
+        total_in_all = sum(int(r["tokens_in"] or 0) for r in group)
+        total_out_all = sum(int(r["tokens_out"] or 0) for r in group)
+        total_cost_usd = (
+            (total_in_all / 1_000_000.0) * pricing.input_per_1m_usd
+            + (total_out_all / 1_000_000.0) * pricing.output_per_1m_usd
+        )
+        cost_per_1k = (total_cost_usd / n) * 1000.0
 
         peak_q = max(
             estimate_peak_concurrency_from_csv(group, max_concurrency),

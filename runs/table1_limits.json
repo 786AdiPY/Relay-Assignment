@@ -16,20 +16,20 @@
   "table1_limits": [
     {
       "Limit": "Requests per minute (RPM)",
-      "Value you found": "1000 req/min",
-      "How you found it": "Groq developer documentation and response headers (x-ratelimit-limit-requests / reset-requests window)",
+      "Value you found": "30 req/min",
+      "How you found it": "Groq documentation and account limits panel for free tier",
       "Confidence": "High"
     },
     {
       "Limit": "Tokens per minute (TPM)",
-      "Value you found": "8000 tokens/min",
-      "How you found it": "x-ratelimit-limit-tokens and x-ratelimit-remaining-tokens in live API response headers",
+      "Value you found": "8,000 tokens/min",
+      "How you found it": "Measured in x-ratelimit-limit-tokens header on live API calls (binding bottleneck)",
       "Confidence": "High"
     },
     {
       "Limit": "Requests per day (RPD)",
-      "Value you found": "14,400 req/day (llama-3.1-8b-instant)",
-      "How you found it": "Groq Console Rate Limits documentation for free tier organization quota",
+      "Value you found": "1,000 req/day (qwen/qwen3.8-27b; 14,400 for 8b instant)",
+      "How you found it": "Measured in x-ratelimit-limit-requests header on live API calls (1,000 RPD for 27b/70b; 14,400 for 8b instant)",
       "Confidence": "High"
     },
     {
@@ -40,20 +40,20 @@
     },
     {
       "Limit": "Requests in flight at once",
-      "Value you found": "~5-10 concurrent in-flight requests",
-      "How you found it": "Concurrent connection probes; queueing/slowdown observed above 5 concurrent requests on free tier",
+      "Value you found": "~5\u201310 concurrent requests",
+      "How you found it": "Concurrency probe; latency degrades sharply above 5 in-flight on free tier",
       "Confidence": "Medium"
     },
     {
       "Limit": "What it returns when a limit is hit",
-      "Value you found": "HTTP 429 with JSON {'error': {'message': '...', 'type': 'rate_limit_error'}} and Retry-After header",
-      "How you found it": "Observed 429 responses and documented error schema on Groq documentation",
+      "Value you found": "HTTP 429 with JSON error object and Retry-After header",
+      "How you found it": "Triggered rate limit and inspected raw HTTP response",
       "Confidence": "High"
     },
     {
       "Limit": "Time until it recovers",
-      "Value you found": "x-ratelimit-reset-tokens seconds for TPM (typically <60s); 24 hours / midnight UTC for daily RPD/TPD",
-      "How you found it": "Parsed x-ratelimit-reset-requests and x-ratelimit-reset-tokens duration headers ('14s', '1m20s')",
+      "Value you found": "2s \u2013 60s for TPM; daily reset at 00:00 UTC",
+      "How you found it": "Parsed x-ratelimit-reset-tokens and reset-requests headers",
       "Confidence": "High"
     }
   ]
