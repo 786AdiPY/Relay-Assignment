@@ -149,7 +149,7 @@ def compute_scenario_tables(
                 "Retries per request": round(total_retries / n, 2),
                 "Peak queue length": peak_q,
                 "Tokens per answer": round(tokens_per_answer, 1),
-                "Cost per 1,000 answers": f"${cost_per_1k:.4f}",
+                "Cost per 1,000 attempts": f"${cost_per_1k:.4f}",
             }
         )
 

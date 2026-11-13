@@ -290,7 +290,7 @@ async def run_all(output_dir: Path = RUNS_DIR) -> None:
 
 ## Table 2b: Outcomes
 {format_markdown_table(
-    ["Scenario", "Succeeded %", "Rate-limited %", "Timed out or given up %", "Retries per request", "Peak queue length", "Tokens per answer", "Cost per 1,000 answers"],
+    ["Scenario", "Succeeded %", "Rate-limited %", "Timed out or given up %", "Retries per request", "Peak queue length", "Tokens per answer", "Cost per 1,000 attempts"],
     t2b
 )}
 
