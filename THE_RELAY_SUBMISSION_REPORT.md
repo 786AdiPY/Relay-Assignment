@@ -7,13 +7,13 @@ I built a quota-aware, deadline-enforcing research assistant and evaluation harn
 The system is organized into five decoupled layers:
 1. **Client / Load Generator:** Generates structured request arrivals across five load shapes (`steady`, `burst`, `sustained overload`, `per-minute limit halved`, and `daily budget exhausted`) with configurable client abandonment timers.
 2. **Orchestration Layer:** Manages request validation, admission queueing, concurrency limiting, quota tracking, adaptive retrieval degradation, and end-to-end deadline propagation.
-3. **AI Assistant Pipeline:** Implements a 4-step pipeline: **Step A** (Query Understanding & paper targeting) $\rightarrow$ **Step B** (Hybrid FAISS dense + BM25 lexical search with optional multi-signal re-ranking) $\rightarrow$ **Step C** (Evidence Sufficiency Decision with a bounded loop back to Step B, an early refusal branch, or drafting cited answers) $\rightarrow$ **Step D** (Claim verification & deterministic citation check) $\rightarrow$ **Final Response Gate** (enforces that only verified citations reach the caller; triggers at most 1 bounded correction attempt, then safe refusal).
+3. **AI Assistant Pipeline:** Implements a 4-step pipeline: **Step A** (Query Understanding & paper targeting) → **Step B** (Hybrid FAISS dense + BM25 lexical search with optional multi-signal re-ranking) → **Step C** (Evidence Sufficiency Decision with a bounded loop back to Step B, an early refusal branch, or drafting cited answers) → **Step D** (Claim verification & deterministic citation check) → **Final Response Gate** (enforces that only verified citations reach the caller; triggers at most 1 bounded correction attempt, then safe refusal).
 4. **Model Provider Interface:** An async streaming abstraction powering both live Groq calls and a locally hosted, calibrated HTTP/SSE Stand-in service, gated by a stateful Circuit Breaker (`CLOSED`, `OPEN`, `HALF_OPEN`).
 5. **Cross-Cutting Observability & Evaluation:** An out-of-band telemetry observer listening passively to lifecycle events across Layers 1–4. It writes the exact 12-column `results.csv`, captures full event timelines in `traces.jsonl`, and deterministically recomputes all summary tables.
 
 ### The One Decision That Shaped It Most
 **Enforcing a single, shared, non-resetting monotonic deadline across the entire request lifecycle.** 
-A multi-step agentic pipeline (`A` $\rightarrow$ `B` $\rightarrow$ `C` $\rightarrow$ `D` + potential loop + retries) can make 3 to 6 LLM calls per query. In a naive system, each sub-step or retry gets its own timeout; under load, a request that waited in queue for 8 seconds starts drafting, retries a 429 backoff for 4 seconds, and continues executing 20 seconds later long after the caller has abandoned the query. By binding admission, queue wait, retrieval, model calls, and retry backoffs to one immutable `deadline_ts`, the system immediately cancels abandoned in-flight streams, protects upstream provider quotas from phantom work, and eliminates cascading queue congestion.
+A multi-step agentic pipeline (`A` → `B` → `C` → `D` + potential loop + retries) can make 3 to 6 LLM calls per query. In a naive system, each sub-step or retry gets its own timeout; under load, a request that waited in queue for 8 seconds starts drafting, retries a 429 backoff for 4 seconds, and continues executing 20 seconds later long after the caller has abandoned the query. By binding admission, queue wait, retrieval, model calls, and retry backoffs to one immutable `deadline_ts`, the system immediately cancels abandoned in-flight streams, protects upstream provider quotas from phantom work, and eliminates cascading queue congestion.
 
 ---
 
@@ -31,10 +31,10 @@ To discover Groq's empirical boundaries without violating terms, I ran targeted 
 
 ### Stand-in Behavior & Calibration
 I implemented a standalone local FastAPI/SSE service (`standin_server.py`) mimicking Groq's exact streaming format, headers, and failure modes:
-* **Calibrated Latency:** Calibrated against Groq measurements: median TTFT of **150ms** ($\pm 45\text{ms}$ jitter) on local stand-in, streaming at **3–5ms per token piece**.
-* **Load Degradation:** Increases TTFT and inter-token streaming latency by $+40\text{ms}$ per concurrent in-flight request ($(\text{in\_flight} - 1) \times 40\text{ms}$).
+* **Calibrated Latency:** Calibrated against Groq measurements: median TTFT of **150ms** (±45 ms jitter) on local stand-in, streaming at **3–5ms per token piece**.
+* **Load Degradation:** Increases TTFT and inter-token streaming latency by +40 ms per concurrent in-flight request ((in_flight - 1) × 40 ms).
 * **Sliding Window Token & Request Tracking:** Tracks request timestamps and token consumption over a sliding 60-second window, rejecting excess traffic with authentic `HTTP 429` payloads and realistic `x-ratelimit-*` headers.
-* **Failure & Tail Latency Injection:** Simulates transient upstream `HTTP 503` failures ($p=0.02$) and slow-succeeding tail requests ($p=0.04$, adding $+2800\text{ms}$).
+* **Failure & Tail Latency Injection:** Simulates transient upstream `HTTP 503` failures (p = 0.02) and slow-succeeding tail requests (p = 0.04, adding +2800 ms).
 
 ### Where the Stand-in Differs Most from the Real Thing
 The stand-in differs most in **GPU kernel scheduling and batch interleaving**. Groq's custom Language Processing Unit (LPU) architecture exhibits almost zero inter-token variance once generation starts (~1,000 tokens/s generation throughput), with latency spikes occurring almost entirely in the initial TCP/TLS handshake and pre-fill phase. In contrast, the software stand-in runs on asyncio sleep loops, where event-loop scheduling jitter is spread across individual streamed chunks. Furthermore, the stand-in enforces a hard token count ceiling instantly, whereas Groq's distributed gateway occasionally allows short burst credits before abruptly returning 429s.
@@ -94,15 +94,15 @@ The client-visible First Verified Token Delay was **16,646.31 ms**, and the post
 
 **How we know:**
 Layer 5's `traces.jsonl` records exact monotonic millisecond timestamps for each event:
-1. `queue_enter`: $t = 0.0\text{ ms}$
-2. `queue_exit`: $t = 3,072.2\text{ ms}$ ($\Delta = 3,072.2\text{ ms}$)
-3. `step_a_understand` (loop 0): start $= 3,072.3\text{ ms}$, duration $= 10,248.3\text{ ms}$ (includes provider rate-limit retry backoff)
-4. `step_b_retrieve` (loop 0): start $= 13,320.7\text{ ms}$, duration $= 8.4\text{ ms}$
-5. `step_c_decide` (loop 0): start $= 13,329.2\text{ ms}$, duration $= 1,213.6\text{ ms}$
-6. `step_b_retrieve` (loop 1): start $= 14,542.8\text{ ms}$, duration $= 4.8\text{ ms}$
-7. `step_c_decide` (loop 1): start $= 14,547.7\text{ ms}$, duration $= 1,120.1\text{ ms}$
-8. `step_c_draft` (loop 0): start $= 15,667.9\text{ ms}$, duration $= 978.4\text{ ms}$
-9. `safe_refusal` (loop 0): finalized at $t = 16,646.3\text{ ms}$
+1. `queue_enter`: t = 0.0 ms
+2. `queue_exit`: t = 3,072.2 ms (Δ = 3,072.2 ms)
+3. `step_a_understand` (loop 0): start = 3,072.3 ms, duration = 10,248.3 ms (includes provider rate-limit retry backoff)
+4. `step_b_retrieve` (loop 0): start = 13,320.7 ms, duration = 8.4 ms
+5. `step_c_decide` (loop 0): start = 13,329.2 ms, duration = 1,213.6 ms
+6. `step_b_retrieve` (loop 1): start = 14,542.8 ms, duration = 4.8 ms
+7. `step_c_decide` (loop 1): start = 14,547.7 ms, duration = 1,120.1 ms
+8. `step_c_draft` (loop 0): start = 15,667.9 ms, duration = 978.4 ms
+9. `safe_refusal` (loop 0): finalized at t = 16,646.3 ms
 
 Because of Fix 1 (Response Gate), draft text is withheld until Step D certifies grounding and citations. Thus, TTFT for verified text reflects the cumulative pipeline and safety check time, ensuring no ungrounded text ever reaches the client.
 
@@ -111,7 +111,7 @@ Because of Fix 1 (Response Gate), draft text is withheld until Step D certifies 
 ## 5. When a limit is hit
 
 ### Per-Minute Limit (RPM / TPM)
-When the per-minute limit is approached ($>80\%$ TPM consumed or recent 429 within 15s):
+When the per-minute limit is approached (>80% TPM consumed or recent 429 within 15s):
 * **Adaptive Degradation:** Active requests degrade retrieval from `med_k5_rerank` (5 chunks, re-ranking) to `med_k3_degraded` (3 chunks, no re-ranking), and cap retrieval loops to 1. This reduces tokens per request by ~45%, allowing more concurrent requests to finish within the 8,000 TPM ceiling.
 * **Who is delayed:** Incoming requests are queued in FIFO order up to `max_queue_size = 80`.
 * **Who is dropped:** Requests whose queue wait exceeds their remaining end-to-end deadline are dropped with `status = timeout`. When queue capacity is full, new requests are rejected immediately with `status = rate_limited`.
@@ -121,7 +121,7 @@ When the per-minute limit is approached ($>80\%$ TPM consumed or recent 429 with
 When the daily limit is exhausted:
 * **Simulated Provider-Side 429 Rejection:** In our stand-in evaluation (`daily_budget_exhausted`), the stand-in model endpoint simulates daily exhaustion by immediately rejecting calls with `HTTP 429` and headers specifying `requests per day (RPD) exhausted` with `Retry-After: 3600s`. These calls complete in ~8 ms with 0 tokens consumed.
 * **Orchestrator Circuit Breaker & Fail-Fast:** Once this provider-side daily exhaustion signal is observed (or when real Groq headers return `x-ratelimit-reset-requests > 120s` with 0 remaining), the orchestrator's circuit breaker trips to `OPEN` and marks `daily_exhausted = True`.
-* **Zero Model Calls Issued:** Subsequent requests fail fast at the orchestrator boundary in $<1\text{ms}$ with an honest, unambiguous refusal informing the caller that daily quota is exhausted and stating when the daily reset (midnight UTC) will occur.
+* **Zero Model Calls Issued:** Subsequent requests fail fast at the orchestrator boundary in < 1 ms with an honest, unambiguous refusal informing the caller that daily quota is exhausted and stating when the daily reset (midnight UTC) will occur.
 
 ---
 
@@ -139,7 +139,7 @@ When the daily limit is exhausted:
 In our measured benchmark, `small_k3_norank` achieved **31.2%** correct answers, whereas `med_k5_rerank` achieved only **12.5%** (with wrong answers rising from 37.5% to 56.2%, and false-refusal rate rising). Keeping results exactly as measured without manipulation, an itemized inspection of the evaluation traces revealed three concrete failure mechanisms:
 1. **Cross-Paper Re-Ranking Semantic Drift:** On question `q10` (*"In dynamic chunking, what computational efficiency advantage does hierarchical modeling offer?"*), `small_k3` retrieved passages strictly within the targeted *Dynamic Chunking (H-Net)* paper. In contrast, `med_k5_rerank` fetched 5 candidate chunks across the corpus and re-ranked them. Because Vaswani et al. also heavily discusses computational complexity and multi-head attention efficiency, the lexical-dense re-ranker boosted an irrelevant Vaswani chunk into the generator's context window. The generator cited Vaswani instead of H-Net, triggering a factual and citation error.
 2. **Chunk-Boundary Truncation of Parameter Counts:** On question `q06` (*"What is the parameter size of the Moshi audio language model backbone?"*), the Helium 7B model specifications sit in a compact table on page 8. The 180-token chunking cleanly isolated the page 8 table. However, the 320-token chunk boundary straddled the boundary of page 7 and 8, placing the narrative text from page 7 into context while cutting off the exact parameter count, causing the generator to fail.
-3. **Step C Evidence Density Dilution & False Refusals:** Expanding chunk size and count to $5 \times 320 = 1,600$ tokens diluted the signal-to-noise ratio for fine-grained factual targets (e.g. `q02` FFN formulation and `q03` warmup steps). During Step C evidence evaluation, the model suffered from "lost in the middle" dilution in the expanded context, falsely concluding that evidence was insufficient (`refused_wrongly`). In contrast, 180-token chunks presented high-density, focused evidence that Step C readily verified.
+3. **Step C Evidence Density Dilution & False Refusals:** Expanding chunk size and count to 5 × 320 = 1,600 tokens diluted the signal-to-noise ratio for fine-grained factual targets (e.g. `q02` FFN formulation and `q03` warmup steps). During Step C evidence evaluation, the model suffered from "lost in the middle" dilution in the expanded context, falsely concluding that evidence was insufficient (`refused_wrongly`). In contrast, 180-token chunks presented high-density, focused evidence that Step C readily verified.
 
 ### Setting Choice and Adaptive Policy
 Despite `small_k3_norank`'s superior empirical accuracy on this specific 16-question set, `med_k5_rerank` remains the default architecture in `config.py` for broad domain coverage, but these measurements reveal that naive re-ranking without strict paper-ID partitioning introduces dangerous cross-paper semantic interference. When token pressure rises above 80% TPM, the orchestrator sheds re-ranking and degrades to `med_k3_degraded`, reducing prompt tokens by ~45% while eliminating re-ranking distractor drift.
@@ -152,8 +152,8 @@ Despite `small_k3_norank`'s superior empirical accuracy on this specific 16-ques
    * *Question:* "In dynamic chunking, how are chunk boundaries decided?"
    * *Failure Mode:* The word "chunking" appears in *Dynamic Chunking for End-to-End Hierarchical Sequence Modeling* (H-Net), but *Moshi* also discusses chunking audio frames into streaming tokens, and *Attention Is All You Need* discusses chunking training sequences. A naive vector search matches high-frequency audio chunking passages from Moshi, producing a hallucinated composite answer that claims H-Net uses audio codecs.
 2. **Lexical Subword Surface Overlap (The "Attention Head" Trap):**
-   * *Question:* "What are the dimensions $d_k$ and $d_v$ of the attention heads?"
-   * *Failure Mode:* All three papers use multi-head attention. A naive retriever without paper-id metadata filtering returns sections from *Moshi* or *H-Net* describing downsampling attention layers, answering with Moshi's audio encoder dimensions rather than Vaswani's $d_k = d_v = 64$.
+   * *Question:* "What are the dimensions d_k and d_v of the attention heads?"
+   * *Failure Mode:* All three papers use multi-head attention. A naive retriever without paper-id metadata filtering returns sections from *Moshi* or *H-Net* describing downsampling attention layers, answering with Moshi's audio encoder dimensions rather than Vaswani's d_k = d_v = 64.
 3. **Negative Cross-Paper Distractor (The Blended Concept Trap):**
    * *Question:* "In Attention Is All You Need, what configuration of the Mimi audio codec is used?"
    * *Failure Mode:* A naive dense retriever matches "Attention Is All You Need" from paper 1 and "Mimi audio codec" from paper 2, computes a high cosine similarity score, and feeds both passages to the generator. A naive LLM generates a synthetic answer explaining how Mimi fits into the Transformer, rather than detecting the incompatibility and refusing.
@@ -164,11 +164,11 @@ Despite `small_k3_norank`'s superior empirical accuracy on this specific 16-ques
 
 ### Policy
 * **Retryable triggers:** Upstream `HTTP 5xx`, network timeouts, and non-daily `HTTP 429` (per-minute limits).
-* **Backoff calculation:** Truncated exponential backoff with full jitter ($base = 250\text{ms}$, factor $= 2$, max $= 3500\text{ms}$). If `Retry-After` is present in the response headers, the backoff strictly honors `max(backoff, retry_after)`.
-* **Single Deadline Constraint:** If $backoff + 150\text{ms} \ge remaining\_deadline$, the retry is immediately aborted and the request fails fast with `timeout`.
+* **Backoff calculation:** Truncated exponential backoff with full jitter (base = 250 ms, factor = 2, max = 3500 ms). If `Retry-After` is present in the response headers, the backoff strictly honors `max(backoff, retry_after)`.
+* **Single Deadline Constraint:** If backoff + 150 ms >= remaining_deadline, the retry is immediately aborted and the request fails fast with `timeout`.
 
 ### One Case Where Retrying Made Things Worse
-During an unjittered, aggressive retry test with 30 concurrent requests under `sustained_overload`, requests that received a 429 retried almost simultaneously after a fixed 100ms window. This created a **synchronized retry storm**: rather than allowing Groq's 8,000 TPM bucket to replenish, the retried requests hit the gateway in a tight burst, consuming 100% of the reset window and tripping the circuit breaker for all subsequent queued requests. Introducing randomized jitter ($0.75 \times \text{to } 1.25\times$) and enforcing `remaining_ms` checks eliminated this synchronization.
+During an unjittered, aggressive retry test with 30 concurrent requests under `sustained_overload`, requests that received a 429 retried almost simultaneously after a fixed 100ms window. This created a **synchronized retry storm**: rather than allowing Groq's 8,000 TPM bucket to replenish, the retried requests hit the gateway in a tight burst, consuming 100% of the reset window and tripping the circuit breaker for all subsequent queued requests. Introducing randomized jitter (0.75× to 1.25×) and enforcing `remaining_ms` checks eliminated this synchronization.
 
 ---
 
@@ -226,7 +226,7 @@ In accordance with the submission guidelines, the complete, unedited conversatio
 
 ### One Thing It Got Wrong That I Caught
 **Architectural Misplacement of Observability as a Sequential Stage:**
-In its initial architecture proposal, the assistant placed Layer 5 (Observability) as the final synchronous step in the request processing pipeline (`Client` $\rightarrow$ `Orchestrator` $\rightarrow$ `Pipeline` $\rightarrow$ `Provider` $\rightarrow$ `Observability`). 
+In its initial architecture proposal, the assistant placed Layer 5 (Observability) as the final synchronous step in the request processing pipeline (`Client` → `Orchestrator` → `Pipeline` → `Provider` → `Observability`). 
 I caught this during architecture review: making observability a sequential stage meant every disk flush, file write, or metrics aggregation would add latency directly to the caller's critical path, and any telemetry exception could fail the request. I instructed it to refactor Layer 5 into a **cross-cutting, out-of-band observer** that receives decoupled lifecycle events asynchronously via a thread-safe event bus without touching the critical response path.
 
 ### One Decision Where I Overruled It
