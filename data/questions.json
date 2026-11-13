@@ -1,0 +1,171 @@
+[
+  {
+    "id": "q01_transformer_heads",
+    "question": "In 'Attention Is All You Need', what are the values of d_model, the number of attention heads h, and the dimensions d_k and d_v in the base model?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["1706.03762v7"],
+    "required_any_terms": [
+      ["512", "d_model = 512", "dmodel = 512"],
+      ["8", "h = 8"],
+      ["64", "d_k = 64", "dk = 64"]
+    ],
+    "category": "non_memory_detail",
+    "notes": "Section 3.2.2 and Table 3 base model parameters"
+  },
+  {
+    "id": "q02_transformer_ffn",
+    "question": "What is the inner-layer dimensionality d_ff of the Position-wise Feed-Forward Networks in 'Attention Is All You Need'?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["1706.03762v7"],
+    "required_any_terms": [
+      ["2048", "d_ff = 2048", "dff = 2048", "2,048"]
+    ],
+    "category": "non_memory_detail",
+    "notes": "Section 3.3 Position-wise Feed-Forward Networks"
+  },
+  {
+    "id": "q03_transformer_warmup",
+    "question": "According to 'Attention Is All You Need', how many warmup steps were used in the Adam optimizer learning rate schedule?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["1706.03762v7"],
+    "required_any_terms": [
+      ["4000", "4,000", "warmup_steps = 4000", "warmup steps = 4000"]
+    ],
+    "category": "non_memory_detail",
+    "notes": "Section 5.3 Optimizer equation 3"
+  },
+  {
+    "id": "q04_transformer_xl_unanswerable",
+    "question": "What learning rate was used for the Transformer-XL baseline in 'Attention Is All You Need'?",
+    "expected_type": "unanswerable",
+    "expected_paper_ids": ["1706.03762v7"],
+    "required_any_terms": [],
+    "category": "unanswerable",
+    "notes": "Transformer-XL was published later; paper does not evaluate or mention it"
+  },
+  {
+    "id": "q05_moshi_mimi_bitrate",
+    "question": "In the Moshi paper, what is the bitrate and frame rate of the Mimi neural audio codec?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["2410.00037v1"],
+    "required_any_terms": [
+      ["1.1 kbps", "1.1kbps", "1.1", "1100 bps"],
+      ["12.5 hz", "12.5hz", "12.5 frames"]
+    ],
+    "category": "non_memory_detail",
+    "notes": "Section 2 / Abstract detailing Mimi codec bitrate and frame rate"
+  },
+  {
+    "id": "q06_moshi_backbone_size",
+    "question": "What is the parameter size of the Helium text foundation model backbone in Moshi?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["2410.00037v1"],
+    "required_any_terms": [
+      ["7b", "7 billion", "7.6b", "7.0b", "7-billion"]
+    ],
+    "category": "non_memory_detail",
+    "notes": "Section describing Helium text model parameter size"
+  },
+  {
+    "id": "q07_moshi_latency",
+    "question": "What is the theoretical latency (or acoustic lag) reported for Moshi during full-duplex spoken conversation?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["2410.00037v1"],
+    "required_any_terms": [
+      ["160 ms", "160ms", "200 ms", "200ms", "160", "200"]
+    ],
+    "category": "non_memory_detail",
+    "notes": "Abstract / dialogue latency measurements"
+  },
+  {
+    "id": "q08_moshi_mandarin_unanswerable",
+    "question": "Does Moshi version 1 support native Cantonese or Mandarin dialogue evaluation according to the paper?",
+    "expected_type": "unanswerable",
+    "expected_paper_ids": ["2410.00037v1"],
+    "required_any_terms": [],
+    "category": "unanswerable",
+    "notes": "Moshi paper explicitly studies English; Cantonese/Mandarin dialogue is unanswerable"
+  },
+  {
+    "id": "q09_dynamic_chunking_mechanism",
+    "question": "In 'Dynamic Chunking for End-to-End Hierarchical Sequence Modeling', how does H-Net determine the chunk boundaries dynamically?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["2507.07955v2"],
+    "required_any_terms": [
+      ["boundary", "router", "dynamic chunking", "threshold", "gumbel", "hierarchical"]
+    ],
+    "category": "non_memory_detail",
+    "notes": "Section on dynamic chunk boundary prediction and hierarchical sequence modeling"
+  },
+  {
+    "id": "q10_dynamic_chunking_efficiency",
+    "question": "What computational or memory complexity benefit does Dynamic Chunking provide over standard flat attention in sequence modeling?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["2507.07955v2"],
+    "required_any_terms": [
+      ["linear", "sub-quadratic", "complexity", "memory", "hierarchical", "downsampling", "efficiency"]
+    ],
+    "category": "non_memory_detail",
+    "notes": "Introduction and complexity analysis of hierarchical chunked attention"
+  },
+  {
+    "id": "q11_dynamic_chunking_fixed_comparison",
+    "question": "How does dynamic chunking compare to fixed-size chunking across long-context sequence modeling tasks in the paper?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["2507.07955v2"],
+    "required_any_terms": [
+      ["fixed", "outperforms", "better", "perplexity", "information", "boundary"]
+    ],
+    "category": "non_memory_detail",
+    "notes": "Empirical comparison against fixed chunk baselines"
+  },
+  {
+    "id": "q12_dynamic_chunking_bleu_unanswerable",
+    "question": "What is the exact WMT'14 English-to-German BLEU score reported for Dynamic Chunking in arXiv:2507.07955v2?",
+    "expected_type": "unanswerable",
+    "expected_paper_ids": ["2507.07955v2"],
+    "required_any_terms": [],
+    "category": "unanswerable",
+    "notes": "Dynamic chunking evaluates sequence modeling, not WMT machine translation"
+  },
+  {
+    "id": "q13_trap1_cross_paper_chunking",
+    "question": "In 'Dynamic Chunking for End-to-End Hierarchical Sequence Modeling', what mechanism defines a chunk boundary?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["2507.07955v2"],
+    "required_any_terms": [
+      ["boundary", "chunk", "dynamic", "hierarchical", "router", "predictor"]
+    ],
+    "category": "naive_trap_1",
+    "notes": "Trap 1: Cross-Paper Term Collision. Query 'chunk' collides with Moshi audio chunks unless paper-aware"
+  },
+  {
+    "id": "q14_trap2_generic_multihead",
+    "question": "In 'Attention Is All You Need', what is the formula for Scaled Dot-Product Attention?",
+    "expected_type": "answerable",
+    "expected_paper_ids": ["1706.03762v7"],
+    "required_any_terms": [
+      ["softmax", "q k^t", "qk^t", "sqrt(d_k)", "sqrt(dk)"]
+    ],
+    "category": "naive_trap_2",
+    "notes": "Trap 2: Lexical Surface Overlap. Attention mechanisms exist in all three papers; must ground in Vaswani et al."
+  },
+  {
+    "id": "q15_trap3_negative_cross_distractor",
+    "question": "In 'Attention Is All You Need', what Mimi audio codec configuration is used for multi-head attention?",
+    "expected_type": "unanswerable",
+    "expected_paper_ids": ["1706.03762v7", "2410.00037v1"],
+    "required_any_terms": [],
+    "category": "naive_trap_3",
+    "notes": "Trap 3: Cross-paper distractor blending Vaswani and Moshi Mimi; must refuse"
+  },
+  {
+    "id": "q16_medical_radiography_unanswerable",
+    "question": "What batch size was used to train Moshi on clinical medical radiography datasets?",
+    "expected_type": "unanswerable",
+    "expected_paper_ids": ["2410.00037v1"],
+    "required_any_terms": [],
+    "category": "unanswerable",
+    "notes": "Completely out of scope of speech/audio foundation modeling"
+  }
+]

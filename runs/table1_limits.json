@@ -1,0 +1,60 @@
+{
+  "model": "qwen/qwen3.8-27b",
+  "measured_probes": 4,
+  "ttft_p50_ms": 1476.5,
+  "ttft_p95_ms": 6856.2,
+  "inter_token_ms": 0.98,
+  "tokens_per_sec": 1018.4,
+  "headers_observed": {
+    "x-ratelimit-limit-requests": "1000",
+    "x-ratelimit-limit-tokens": "8000",
+    "x-ratelimit-remaining-requests": "996",
+    "x-ratelimit-remaining-tokens": "7933",
+    "x-ratelimit-reset-requests": "5m45.6s",
+    "x-ratelimit-reset-tokens": "2.52s"
+  },
+  "table1_limits": [
+    {
+      "Limit": "Requests per minute (RPM)",
+      "Value you found": "1000 req/min",
+      "How you found it": "Groq developer documentation and response headers (x-ratelimit-limit-requests / reset-requests window)",
+      "Confidence": "High"
+    },
+    {
+      "Limit": "Tokens per minute (TPM)",
+      "Value you found": "8000 tokens/min",
+      "How you found it": "x-ratelimit-limit-tokens and x-ratelimit-remaining-tokens in live API response headers",
+      "Confidence": "High"
+    },
+    {
+      "Limit": "Requests per day (RPD)",
+      "Value you found": "14,400 req/day (llama-3.1-8b-instant)",
+      "How you found it": "Groq Console Rate Limits documentation for free tier organization quota",
+      "Confidence": "High"
+    },
+    {
+      "Limit": "Tokens per day (TPD)",
+      "Value you found": "500,000 tokens/day",
+      "How you found it": "Groq Console published tier limits and organization daily allocation",
+      "Confidence": "High"
+    },
+    {
+      "Limit": "Requests in flight at once",
+      "Value you found": "~5-10 concurrent in-flight requests",
+      "How you found it": "Concurrent connection probes; queueing/slowdown observed above 5 concurrent requests on free tier",
+      "Confidence": "Medium"
+    },
+    {
+      "Limit": "What it returns when a limit is hit",
+      "Value you found": "HTTP 429 with JSON {'error': {'message': '...', 'type': 'rate_limit_error'}} and Retry-After header",
+      "How you found it": "Observed 429 responses and documented error schema on Groq documentation",
+      "Confidence": "High"
+    },
+    {
+      "Limit": "Time until it recovers",
+      "Value you found": "x-ratelimit-reset-tokens seconds for TPM (typically <60s); 24 hours / midnight UTC for daily RPD/TPD",
+      "How you found it": "Parsed x-ratelimit-reset-requests and x-ratelimit-reset-tokens duration headers ('14s', '1m20s')",
+      "Confidence": "High"
+    }
+  ]
+}
